@@ -40,6 +40,18 @@ class WebhookControllerTest {
 	}
 
 	@Test
+	void acceptsTextPlainJsonBody() throws Exception {
+		mockMvc.perform(post("/webhook/test")
+						.contentType(MediaType.TEXT_PLAIN)
+						.content("""
+								{"statusCode":202,"message":"Queued for processing"}
+								"""))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.statusCode").value(202))
+				.andExpect(jsonPath("$.message").value("Queued for processing"));
+	}
+
+	@Test
 	void rejectsInvalidStatusCode() throws Exception {
 		mockMvc.perform(post("/webhook/test")
 						.contentType(MediaType.APPLICATION_JSON)

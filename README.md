@@ -31,6 +31,11 @@ Successful response with a custom status:
 curl -i -X POST http://localhost:8080/webhook/test \
   -H "Content-Type: application/json" \
   -d '{"statusCode":202,"message":"Queued for processing"}'
+
+# also works if you send JSON as text/plain
+curl -i -X POST http://localhost:8080/webhook/test \
+  -H "Content-Type: text/plain" \
+  -d '{"statusCode":202,"message":"Queued for processing"}'
 ```
 
 Invalid status code is rejected with `400`:
