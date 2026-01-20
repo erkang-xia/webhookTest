@@ -2,8 +2,11 @@ package com.erkang.webhooktest.controller;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,8 +37,10 @@ public class WebhookController {
 
 	@PostMapping(value = "/test", consumes = MediaType.ALL_VALUE)
 	public ResponseEntity<WebhookResponse> respondWithStatus(@RequestBody(required = false) byte[] body) throws JsonProcessingException {
-		WebhookRequest request = parseRequest(body);
+		String rawBody = bytesToString(body);
+		WebhookRequest request = parseRequest(rawBody);
 		WebhookResponse response = webhookService.process(request);
+		webhookService.recordHistory(rawBody, request, response);
 		return ResponseEntity.status(response.statusCode()).body(response);
 	}
 
@@ -47,16 +52,27 @@ public class WebhookController {
 		return ResponseEntity.ok(body);
 	}
 
-	private WebhookRequest parseRequest(byte[] rawBody) throws JsonProcessingException {
-		if (rawBody == null || rawBody.length == 0) {
+	@GetMapping("/history")
+	public ResponseEntity<Object> history() {
+		return ResponseEntity.ok(webhookService.history());
+	}
+
+	private WebhookRequest parseRequest(String rawBody) throws JsonProcessingException {
+		if (rawBody == null || rawBody.isBlank()) {
 			return new WebhookRequest(null, null);
 		}
-		String asString = new String(rawBody, StandardCharsets.UTF_8);
-		JsonNode root = objectMapper.readTree(asString);
+		JsonNode root = objectMapper.readTree(rawBody);
 
 		Integer statusCode = extractStatusCode(root);
 		String message = extractTextField(root, "message");
 		return new WebhookRequest(statusCode, message);
+	}
+
+	private String bytesToString(byte[] rawBody) {
+		if (rawBody == null || rawBody.length == 0) {
+			return "";
+		}
+		return new String(rawBody, StandardCharsets.UTF_8);
 	}
 
 	private Integer extractStatusCode(JsonNode root) {
@@ -64,6 +80,21 @@ public class WebhookController {
 		if (node == null || node.isNull()) {
 			return null;
 		}
+		if (node.isArray()) {
+			List<Integer> options = new ArrayList<>();
+			for (JsonNode element : node) {
+				options.add(parseStatusNode(element));
+			}
+			if (options.isEmpty()) {
+				throw new IllegalArgumentException("Status code list cannot be empty.");
+			}
+			int pick = ThreadLocalRandom.current().nextInt(options.size());
+			return options.get(pick);
+		}
+		return parseStatusNode(node);
+	}
+
+	private Integer parseStatusNode(JsonNode node) {
 		if (node.isNumber()) {
 			return node.asInt();
 		}

@@ -14,6 +14,7 @@ Spring Boot webhook helper that responds with whatever HTTP status code you ask 
 ## API
 - `POST /webhook/test` — returns the requested status code and echoes a message.
 - `GET /webhook/health` — basic readiness check.
+- `GET /webhook/history` — returns a list of prior webhook calls (request + response data). Entries are kept for 7 days (in-memory).
 
 ### Request body
 ```json
@@ -41,6 +42,14 @@ curl -i -X POST http://localhost:8080/webhook/test \
 curl -i -X POST http://localhost:8080/webhook/test \
   -H "Content-Type: application/json" \
   -d '{"payload":{"statusCode":"405","message":"Nested message"}}'
+
+# statusCode can be a single value or a list; a random one is used if list
+curl -i -X POST http://localhost:8080/webhook/test \
+  -H "Content-Type: application/json" \
+  -d '{"statusCode":[200,201,202],"message":"Will pick one randomly"}'
+
+# fetch call history
+curl -s http://localhost:8080/webhook/history | jq
 ```
 
 Invalid status code is rejected with `400`:
