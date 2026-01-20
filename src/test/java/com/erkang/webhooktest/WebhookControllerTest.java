@@ -52,6 +52,18 @@ class WebhookControllerTest {
 	}
 
 	@Test
+	void handlesNestedStatusCode() throws Exception {
+		mockMvc.perform(post("/webhook/test")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"payload":{"statusCode":"405","message":"Nested"}}
+								"""))
+				.andExpect(status().isMethodNotAllowed())
+				.andExpect(jsonPath("$.statusCode").value(405))
+				.andExpect(jsonPath("$.message").value("Nested"));
+	}
+
+	@Test
 	void rejectsInvalidStatusCode() throws Exception {
 		mockMvc.perform(post("/webhook/test")
 						.contentType(MediaType.APPLICATION_JSON)

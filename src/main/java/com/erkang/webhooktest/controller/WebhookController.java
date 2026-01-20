@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -51,6 +52,62 @@ public class WebhookController {
 			return new WebhookRequest(null, null);
 		}
 		String asString = new String(rawBody, StandardCharsets.UTF_8);
-		return objectMapper.readValue(asString, WebhookRequest.class);
+		JsonNode root = objectMapper.readTree(asString);
+
+		Integer statusCode = extractStatusCode(root);
+		String message = extractTextField(root, "message");
+		return new WebhookRequest(statusCode, message);
+	}
+
+	private Integer extractStatusCode(JsonNode root) {
+		JsonNode node = findFirstField(root, "statusCode");
+		if (node == null || node.isNull()) {
+			return null;
+		}
+		if (node.isNumber()) {
+			return node.asInt();
+		}
+		if (node.isTextual()) {
+			try {
+				return Integer.parseInt(node.asText());
+			} catch (NumberFormatException ex) {
+				throw new IllegalArgumentException("Status code must be numeric.");
+			}
+		}
+		throw new IllegalArgumentException("Status code must be numeric.");
+	}
+
+	private String extractTextField(JsonNode root, String fieldName) {
+		JsonNode node = findFirstField(root, fieldName);
+		if (node == null || node.isNull()) {
+			return null;
+		}
+		return node.asText();
+	}
+
+	private JsonNode findFirstField(JsonNode node, String fieldName) {
+		if (node == null) {
+			return null;
+		}
+		if (node.has(fieldName)) {
+			return node.get(fieldName);
+		}
+		if (node.isObject()) {
+			for (JsonNode child : node) {
+				JsonNode found = findFirstField(child, fieldName);
+				if (found != null) {
+					return found;
+				}
+			}
+		}
+		if (node.isArray()) {
+			for (JsonNode child : node) {
+				JsonNode found = findFirstField(child, fieldName);
+				if (found != null) {
+					return found;
+				}
+			}
+		}
+		return null;
 	}
 }

@@ -36,6 +36,11 @@ curl -i -X POST http://localhost:8080/webhook/test \
 curl -i -X POST http://localhost:8080/webhook/test \
   -H "Content-Type: text/plain" \
   -d '{"statusCode":202,"message":"Queued for processing"}'
+
+# statusCode and message can be nested; first match is used
+curl -i -X POST http://localhost:8080/webhook/test \
+  -H "Content-Type: application/json" \
+  -d '{"payload":{"statusCode":"405","message":"Nested message"}}'
 ```
 
 Invalid status code is rejected with `400`:
